@@ -12,6 +12,9 @@ kd:
   command_timeout_sec: 60
   output_tail_chars: 200000
   auto_initial_break: false
+  # When the target is broken into KD, the guest kernel/network stack is paused.
+  # resume_for_winrm and continue_go send 'g' and then wait this many seconds before returning.
+  continue_wait_sec: 5.0
 
 security:
   # Empty allowlist allows all KD commands. For shared environments, add prefixes.
