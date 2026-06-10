@@ -4,14 +4,6 @@
 
 이 프로젝트는 Windows 호스트에서 실행되며, KDNET을 통해 Windows 게스트 VM의 커널 디버깅 세션을 자동으로 연결하고 제어할 수 있습니다.
 
-## Repository Description
-
-영문 Description으로는 다음 문구를 사용하는 것을 권장합니다.
-
-```text
-MCP server for automating KDNET-based Windows kernel debugging with kd.exe and WinDbg, designed to integrate with WinRM-MCP.
-```
-
 ## Features
 
 - KDNET 자동 연결
