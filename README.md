@@ -1,23 +1,111 @@
-# kd-mcp
+# KD-MCP
 
-`kd-mcp` is an MCP server for controlling `kd.exe` on a Windows host.
-It is designed to pair with a separate [`winrm-mcp`](../winrm-mcp) server for Windows guest VM setup over WinRM.
+`kd-mcp`는 Windows 커널 디버깅을 위해 `kd.exe` 또는 WinDbg를 제어하는 MCP(Model Context Protocol) 서버입니다.
+
+이 프로젝트는 Windows 호스트에서 실행되며, KDNET을 통해 Windows 게스트 VM의 커널 디버깅 세션을 자동으로 연결하고 제어할 수 있습니다.
+
+## Repository Description
+
+영문 Description으로는 다음 문구를 사용하는 것을 권장합니다.
+
+```text
+MCP server for automating KDNET-based Windows kernel debugging with kd.exe and WinDbg, designed to integrate with WinRM-MCP.
+```
 
 ## Features
 
-- Start `kd.exe` for KDNET kernel debugging.
-- Start `kd.exe` from the shared state file written by `winrm-mcp`.
-- Send KD commands and collect output.
-- Break into the target.
-- Continue target execution with `g`.
-- Read buffered debugger output.
-- Stop debugger sessions.
-- List active sessions.
-- Optional KD command allowlist/denylist policy.
+- KDNET 자동 연결
+- kd.exe 제어
+- WinDbg 제어
+- 상태 파일 기반 자동 연결
+- 디버거 명령 실행
+- 디버거 출력 수집
+- 현재 연결 상태 조회
+- 세션 종료
+- WinRM-MCP 연동
 
-## How it works with winrm-mcp
+## Architecture
 
-`winrm-mcp` configures the guest and writes a state file on the host:
+KD-MCP는 항상 호스트 Windows에서 실행됩니다.
+
+게스트 Windows에서는 KDNET 커널 디버깅만 활성화되어 있으면 됩니다.
+
+```text
+Host Windows
+  ├─ Codex / MCP Client
+  ├─ kd-mcp
+  ├─ kd.exe
+  └─ WinDbg
+
+Guest Windows VM
+  ├─ Windows Kernel
+  └─ KDNET Target
+```
+
+## Integration With WinRM-MCP
+
+KD-MCP는 WinRM-MCP와 함께 사용하는 것을 권장합니다.
+
+WinRM-MCP는 게스트 VM 설정과 KDNET 활성화를 담당하고, KD-MCP는 실제 커널 디버거 연결과 제어를 담당합니다.
+
+일반적인 작업 순서는 다음과 같습니다.
+
+```text
+1. WinRM-MCP 실행
+2. configure_kdnet()
+3. 게스트 재부팅
+4. KD-MCP 실행
+5. start_from_state()
+6. KDNET 연결
+7. 커널 디버깅 시작
+```
+
+## State File
+
+WinRM-MCP의 configure_kdnet()는 상태 파일을 생성합니다.
+
+상태 파일에는 다음 정보가 포함됩니다.
+
+- Guest Host
+- Host IP
+- KDNET Port
+- KDNET Key
+- 생성 시각
+
+KD-MCP는 이 정보를 사용하여 자동으로 디버거를 연결합니다.
+
+## Requirements
+
+호스트에는 다음이 필요합니다.
+
+- Windows 10/11
+- Windows Server
+- Python 3.10 이상
+- kd.exe 또는 WinDbg
+- Debugging Tools for Windows
+
+게스트에는 다음이 필요합니다.
+
+- Windows 10/11
+- Windows Server
+- KDNET 지원 커널
+- 네트워크 연결 가능 환경
+
+## Installation
+
+```powershell
+git clone https://github.com/haoylle/26_KD-MCP.git
+cd 26_KD-MCP
+.\scripts\install.ps1
+```
+
+설치 후 상태 파일 경로와 디버거 실행 경로를 설정합니다.
+
+## Configuration
+
+KD-MCP는 상태 파일을 읽어 KDNET 연결을 구성합니다.
+
+일반적으로 다음 정보를 사용합니다.
 
 ```json
 {
@@ -29,54 +117,15 @@ It is designed to pair with a separate [`winrm-mcp`](../winrm-mcp) server for Wi
 }
 ```
 
-`kd-mcp` reads that same file with `start_from_state` and starts:
+WinRM-MCP와 KD-MCP는 동일한 포트, 키, 상태 파일을 사용해야 합니다.
 
-```text
-kd.exe -k net:port=<PORT>,key=<KEY>
-```
-
-The two MCP servers do not need direct communication. The MCP client calls them in sequence.
-
-## Requirements
-
-Host:
-
-- Windows 10/11 or Windows Server.
-- Python 3.10+.
-- Windows Kits Debuggers installed.
-- Valid path to `kd.exe`, usually:
-
-```text
-C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\kd.exe
-```
-
-Guest:
-
-- KDNET already configured, usually via `winrm-mcp configure_kdnet`.
-- Guest rebooted after debug boot settings were changed.
-
-## Install
-
-```powershell
-git clone https://github.com/<you>/kd-mcp.git
-cd kd-mcp
-.\scripts\install.ps1
-```
-
-Edit `config.yaml` after installation.
-
-## MCP client configuration
-
-Example:
+## MCP Client Configuration
 
 ```json
 {
   "mcpServers": {
     "kd": {
-      "command": "C:\\tools\\kd-mcp\\.venv\\Scripts\\kd-mcp.exe",
-      "env": {
-        "KD_MCP_CONFIG": "C:\\tools\\kd-mcp\\config.yaml"
-      }
+      "command": "C:\\tools\\26_KD-MCP\\.venv\\Scripts\\kd-mcp.exe"
     }
   }
 }
@@ -84,96 +133,89 @@ Example:
 
 ## Tools
 
-### `health_check()`
+### start_from_state
 
-Checks config loading and verifies the `kd.exe` path exists.
+상태 파일을 읽어 KDNET 연결을 시작합니다.
 
-### `start_kd(port, key, target)`
+대부분의 사용자는 이 기능을 통해 자동 연결을 수행하면 됩니다.
 
-Starts `kd.exe` using explicit KDNET values.
+### connect
 
-### `start_from_state(state_file)`
+IP, 포트, 키를 직접 지정하여 KDNET 연결을 수행합니다.
 
-Starts `kd.exe` using the shared state file written by `winrm-mcp`.
+### kd_command
 
-### `kd_command(session_id, command, timeout_sec)`
+kd.exe 또는 WinDbg에 디버거 명령을 전달합니다.
 
-Sends a KD command and returns output.
-
-Useful examples:
+예시는 다음과 같습니다.
 
 ```text
+!process 0 0
+lm
+!thread
+k
+```
+
+### get_status
+
+현재 디버거 연결 상태를 반환합니다.
+
+### disconnect
+
+현재 디버깅 세션을 종료합니다.
+
+## Common Commands
+
+커널 디버깅 시 자주 사용하는 명령은 다음과 같습니다.
+
+```text
+!process 0 0
+!thread
+!handle
+!pool
+!pte
 lm
 k
 r
-!process 0 0
-!thread
-!analyze -v
-.reload /f
-.symfix
-.sympath
 ```
 
-### `break_in(session_id)`
-
-Sends a break signal to `kd.exe`.
-
-### `continue_go(session_id)`
-
-Sends `g` to continue target execution.
-
-### `read_output(session_id, tail_chars)`
-
-Returns buffered debugger output.
-
-### `stop_kd(session_id, terminate_target)`
-
-Stops the debugger process. By default, it does not intentionally terminate the debug target.
-
-### `list_sessions()`
-
-Lists active debugger sessions.
-
-## End-to-end workflow with winrm-mcp
-
-1. In `winrm-mcp/config.yaml` and `kd-mcp/config.yaml`, set the same state file:
-
-```yaml
-state_file: "C:\\mcp-state\\kd-session.json"
-```
-
-2. Use `winrm-mcp`:
-
-```text
-configure_kdnet
-reboot
-```
-
-3. Use `kd-mcp`:
-
-```text
-start_from_state
-kd_command: lm
-kd_command: k
-kd_command: !analyze -v
-```
-
-## Security notes
-
-KD is powerful. A debugger command can inspect or alter kernel state.
-Use this only on systems you own or are authorized to debug.
-For shared environments, configure `allowed_command_prefixes` and keep `.shell` denied unless you explicitly need it.
+필요에 따라 WinDbg 확장 명령도 사용할 수 있습니다.
 
 ## Troubleshooting
 
-### `kd.exe not found`
+### Cannot connect to KDNET target
 
-Install Windows SDK Debugging Tools or update `kd.kd_exe` in `config.yaml`.
+다음을 확인합니다.
 
-### KD waits forever
+- KDNET 설정 적용 여부
+- 게스트 재부팅 여부
+- 포트 번호
+- KDNET Key
+- 방화벽 설정
 
-Confirm the guest rebooted after KDNET settings were applied. Also verify the host IP, firewall, port, and key.
+### Waiting to reconnect
 
-### Symbols are missing
+게스트가 아직 재부팅 중이거나 KDNET 설정이 적용되지 않았을 수 있습니다.
 
-Check `symbol_path` and ensure the host can access the Microsoft symbol server or your local symbol cache.
+게스트에서 다음 명령을 확인합니다.
+
+```powershell
+bcdedit /dbgsettings
+bcdedit /enum {current}
+```
+
+### State file not found
+
+WinRM-MCP의 configure_kdnet()가 상태 파일을 생성했는지 확인합니다.
+
+두 MCP 서버가 동일한 상태 파일 경로를 사용해야 합니다.
+
+## Security Notes
+
+KDNET 연결 정보는 신뢰할 수 있는 환경에서만 사용해야 합니다.
+
+상태 파일에는 디버깅 연결 정보가 포함되어 있으므로 접근 권한을 적절히 제한하는 것이 좋습니다.
+
+## License
+
+MIT License
