@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "kd": {
+      "command": "C:\\tools\\kd-mcp\\.venv\\Scripts\\kd-mcp.exe",
+      "env": {
+        "KD_MCP_CONFIG": "C:\\tools\\kd-mcp\\config.yaml"
+      }
+    }
+  }
+}

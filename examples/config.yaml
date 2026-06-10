@@ -1,0 +1,21 @@
+# Copy this file to config.yaml and edit it.
+# Set KD_MCP_CONFIG to the full path of your config.yaml.
+
+kd:
+  kd_exe: "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\kd.exe"
+  symbol_path: "srv*C:\\symbols*https://msdl.microsoft.com/download/symbols"
+  default_transport: "net"
+  default_port: 50000
+  default_key: "1.2.3.4"
+  state_file: "C:\\mcp-state\\kd-session.json"
+  startup_timeout_sec: 30
+  command_timeout_sec: 60
+  output_tail_chars: 200000
+  auto_initial_break: false
+
+security:
+  # Empty allowlist allows all KD commands. For shared environments, add prefixes.
+  allowed_command_prefixes: []
+  denied_patterns:
+    - ".shell"
+    - "!for_each_module"
