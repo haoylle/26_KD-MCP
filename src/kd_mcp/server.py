@@ -32,6 +32,7 @@ class KdConfig(BaseModel):
     command_timeout_sec: int = 60
     output_tail_chars: int = 200000
     auto_initial_break: bool = False
+    continue_wait_sec: float = 5.0
 
 
 class SecurityConfig(BaseModel):
@@ -172,6 +173,7 @@ def health_check() -> dict[str, Any]:
         "kd_exe": cfg.kd_exe,
         "symbol_path": cfg.symbol_path,
         "state_file": cfg.state_file,
+        "continue_wait_sec": cfg.continue_wait_sec,
         "active_sessions": list(_sessions.keys()),
     }
 
@@ -238,9 +240,26 @@ def break_in(session_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def continue_go(session_id: str) -> dict[str, Any]:
-    """Send the KD 'g' command to continue target execution."""
-    return kd_command(session_id, "g", timeout_sec=5)
+def continue_go(session_id: str, wait_sec: float | None = None) -> dict[str, Any]:
+    """Send the KD 'g' command to continue target execution, then optionally wait before returning."""
+    cfg = _load_config().kd
+    wait = cfg.continue_wait_sec if wait_sec is None else wait_sec
+    res = kd_command(session_id, "g", timeout_sec=5)
+    if wait and wait > 0:
+        time.sleep(wait)
+    res["waited_sec"] = wait
+    res["note"] = "Target continued. WinRM can be retried after the wait if the guest network stack is running."
+    return res
+
+
+@mcp.tool()
+def resume_for_winrm(session_id: str, wait_sec: float | None = None) -> dict[str, Any]:
+    """Continue from a KD break/bp state and wait so WinRM has time to respond again."""
+    cfg = _load_config().kd
+    wait = cfg.continue_wait_sec if wait_sec is None else wait_sec
+    res = continue_go(session_id, wait_sec=wait)
+    res["winrm_retry_hint"] = "KD break state pauses the guest kernel and network stack. Retry WinRM after this wait."
+    return res
 
 
 @mcp.tool()
