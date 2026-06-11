@@ -15,6 +15,11 @@ kd:
   # When the target is broken into KD, the guest kernel/network stack is paused.
   # resume_for_winrm and continue_go send 'g' and then wait this many seconds before returning.
   continue_wait_sec: 5.0
+  server_port: 50055
+  remote_server: "127.0.0.1"
+  server_state_file: "C:\\mcp-state\\kd-server.json"
+  workdir: "C:\\mcp-state\\kd-work"
+  server_startup_wait_sec: 1.0
 
 security:
   # Empty allowlist allows all KD commands. For shared environments, add prefixes.
