@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+src/kd_mcp/__init__.py
+src/kd_mcp/server.py
+src/kd_mcp.egg-info/PKG-INFO
+src/kd_mcp.egg-info/SOURCES.txt
+src/kd_mcp.egg-info/dependency_links.txt
+src/kd_mcp.egg-info/entry_points.txt
+src/kd_mcp.egg-info/requires.txt
+src/kd_mcp.egg-info/top_level.txt

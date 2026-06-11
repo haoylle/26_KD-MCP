@@ -32,6 +32,8 @@ class KdConfig(BaseModel):
     default_transport: str = "net"
     default_port: int = 50000
     default_key: str
+    default_target: str | None = None
+    default_kdnet: str | None = None
     state_file: str = r"C:\mcp-state\kd-session.json"
     startup_timeout_sec: int = 30
     command_timeout_sec: int = 60
@@ -143,9 +145,7 @@ def _build_cmd(port: int, key: str, host: str | None = None) -> list[str]:
     kd_exe = cfg.kd_exe
     if not Path(kd_exe).exists():
         raise RuntimeError(f"kd.exe not found: {kd_exe}")
-    transport = f"net:port={port},key={key}"
-    if host:
-        transport += f",target={host}"
+    transport = _build_kdnet_transport(port, key, host)
     cmd = [kd_exe]
     if cfg.symbol_path:
         cmd += ["-y", cfg.symbol_path]
@@ -340,6 +340,8 @@ def health_check() -> dict[str, Any]:
         "ok": Path(cfg.kd_exe).exists(),
         "kd_exe": cfg.kd_exe,
         "symbol_path": cfg.symbol_path,
+        "default_target": cfg.default_target,
+        "default_kdnet": cfg.default_kdnet,
         "state_file": cfg.state_file,
         "continue_wait_sec": cfg.continue_wait_sec,
         "server_state_file": cfg.server_state_file,
@@ -352,12 +354,27 @@ def health_check() -> dict[str, Any]:
 
 
 @mcp.tool()
-def start_kd(port: int | None = None, key: str | None = None, target: str | None = None) -> dict[str, Any]:
+def start_kd(
+    port: int | None = None,
+    key: str | None = None,
+    target: str | None = None,
+    kdnet: str | None = None,
+) -> dict[str, Any]:
     """Start kd.exe for KDNET using explicit port/key values."""
     cfg = _load_config().kd
-    port = port or cfg.default_port
-    key = key or cfg.default_key
-    cmd = _build_cmd(port, key, target)
+    active_port = port or cfg.default_port
+    active_key = key or cfg.default_key
+    active_target = target or cfg.default_target
+    active_kdnet = kdnet or cfg.default_kdnet
+    if active_kdnet:
+        if not Path(cfg.kd_exe).exists():
+            raise RuntimeError(f"kd.exe not found: {cfg.kd_exe}")
+        cmd = [cfg.kd_exe]
+        if cfg.symbol_path:
+            cmd += ["-y", cfg.symbol_path]
+        cmd += ["-k", active_kdnet]
+    else:
+        cmd = _build_cmd(active_port, active_key, active_target)
     sess = _start_process(cmd)
     output, prompt_seen = _wait_collect(sess, cfg.startup_timeout_sec, prompt_hint=True)
     if cfg.auto_initial_break:
@@ -371,6 +388,8 @@ def start_kd(port: int | None = None, key: str | None = None, target: str | None
         "command_line": cmd,
         "initial_output": output,
         "prompt_seen": prompt_seen,
+        "target": active_target,
+        "kdnet": active_kdnet or _build_kdnet_transport(active_port, active_key, active_target),
     }
 
 
@@ -537,7 +556,8 @@ def start_kd_server(
     if not Path(kd_path).exists():
         raise RuntimeError(f"kd.exe not found: {kd_path}")
 
-    kdnet_value = kdnet or _build_kdnet_transport(port or cfg.default_port, key or cfg.default_key, target)
+    active_target = target or cfg.default_target
+    kdnet_value = kdnet or cfg.default_kdnet or _build_kdnet_transport(port or cfg.default_port, key or cfg.default_key, active_target)
     active_workdir = Path(workdir or cfg.workdir)
     active_workdir.mkdir(parents=True, exist_ok=True)
     logs_dir = active_workdir / "logs"
@@ -597,6 +617,8 @@ def start_kd_server(
         "log_path": str(active_log_path),
         "command_line": cmd,
         "log_tail": _tail_file(active_log_path, 8192),
+        "target": active_target,
+        "kdnet": kdnet_value,
         "warning": "Do not attach this hidden server and a direct KD session to the same KDNET target at the same time.",
     }
 

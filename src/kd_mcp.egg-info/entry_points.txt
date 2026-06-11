@@ -1,0 +1,2 @@
+[console_scripts]
+kd-mcp = kd_mcp.server:main
