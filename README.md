@@ -143,14 +143,70 @@ kd:
 
 ## MCP Client Configuration
 
+이 MCP 서버는 stdio 기반 로컬 MCP 서버로 실행됩니다.
+
+아래 예시는 레포지토리를 `C:\tools\26_KD-MCP`에 설치했다고 가정합니다. 실제 경로에 맞게 수정해야 합니다.
+
+### Claude Code
+
+Claude Code에서 프로젝트 단위로 등록하려면 프로젝트 루트에서 다음 명령을 실행합니다.
+
+```powershell
+claude mcp add kd `
+  --env KD_MCP_CONFIG="C:\tools\26_KD-MCP\config.yaml" `
+  -- "C:\tools\26_KD-MCP\.venv\Scripts\kd-mcp.exe"
+```
+
+사용자 전체 설정으로 등록하고 싶다면 Claude Code의 MCP scope 옵션을 사용하여 user scope로 추가합니다.
+
+```powershell
+claude mcp add kd `
+  --scope user `
+  --env KD_MCP_CONFIG="C:\tools\26_KD-MCP\config.yaml" `
+  -- "C:\tools\26_KD-MCP\.venv\Scripts\kd-mcp.exe"
+```
+
+수동으로 `.mcp.json`을 사용하는 경우에는 다음처럼 작성할 수 있습니다.
+
 ```json
 {
   "mcpServers": {
     "kd": {
-      "command": "C:\\tools\\26_KD-MCP\\.venv\\Scripts\\kd-mcp.exe"
+      "command": "C:\\tools\\26_KD-MCP\\.venv\\Scripts\\kd-mcp.exe",
+      "env": {
+        "KD_MCP_CONFIG": "C:\\tools\\26_KD-MCP\\config.yaml"
+      }
     }
   }
 }
+```
+
+등록 후 Claude Code를 다시 시작하거나 MCP 서버 목록을 갱신한 뒤 `kd.health_check`를 호출해 설정을 확인합니다.
+
+### Codex CLI
+
+Codex CLI에서는 사용자 설정 파일에 MCP 서버를 추가합니다.
+
+Windows 기준 설정 파일 위치 예시는 다음과 같습니다.
+
+```text
+%USERPROFILE%\.codex\config.toml
+```
+
+다음 항목을 추가합니다.
+
+```toml
+[mcp_servers.kd]
+command = "C:\\tools\\26_KD-MCP\\.venv\\Scripts\\kd-mcp.exe"
+env = { KD_MCP_CONFIG = "C:\\tools\\26_KD-MCP\\config.yaml" }
+```
+
+Codex CLI를 다시 시작한 뒤 MCP tool 목록에서 `kd` 서버가 보이는지 확인합니다.
+
+설정 확인은 다음 tool을 먼저 호출하는 방식으로 진행합니다.
+
+```text
+kd.health_check
 ```
 
 ## Tools
